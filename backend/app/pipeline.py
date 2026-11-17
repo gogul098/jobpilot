@@ -1,4 +1,9 @@
-"""The two jobs the worker runs: analyze (JD + resume -> score + suggested revisions) and apply."""
+"""The jobs the worker runs.
+
+analyze: JD -> JSON, LaTeX -> blocks, compile + score, then suggest revisions.
+suggest: (re)generate revisions, optionally with skills the user confirmed they have.
+apply:   paste accepted text into the LaTeX, compile, re-score.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -27,6 +32,11 @@ async def _compile(tex: str) -> bytes:
     return res.pdf
 
 
+def _bullets(blocks: list[Block], edits: dict[str, str] | None = None) -> list[str]:
+    edits = edits or {}
+    return [edits.get(b.id, b.text) for b in blocks if b.kind == "bullet"]
+
+
 async def analyze(router: ModelRouter, user: str, job_id: str, jd_text: str, progress: Progress) -> dict:
     tex = storage.read(user, job_id, "original.tex").decode("utf-8")
 
@@ -37,40 +47,76 @@ async def analyze(router: ModelRouter, user: str, job_id: str, jd_text: str, pro
     blocks = extract_blocks(tex)
     if not blocks:
         raise PipelineError("No bullets or summary found. Supported: \\item, \\resumeItem{...}, \\cvitem{...}.")
-    bullets = [b.text for b in blocks if b.kind == "bullet"]
 
     await progress("compile", "Compiling your current resume")
     pdf = await _compile(tex)
     storage.write(user, job_id, "original.pdf", pdf)
 
     await progress("score", "Scoring your current resume")
-    before = ats.score(jd, pdf, bullets)
+    before = ats.score(jd, pdf, _bullets(blocks))
+    analysis = {"jd": jd.model_dump(), "blocks": [b.to_dict() for b in blocks],
+                "pdf_text": ats.pdf_facts(pdf)["text"], "score_before": before.to_dict(),
+                "confirmed_skills": [], "models": {"jd": jd_model}}
+    storage.write(user, job_id, "analysis.json", analysis)
+    return await _suggest(router, user, job_id, analysis, [], progress)
 
-    await progress("revise", "Asking the model for revisions")
+
+async def suggest(router: ModelRouter, user: str, job_id: str, confirmed: list[str], progress: Progress) -> dict:
+    analysis = storage.read_json(user, job_id, "analysis.json")
+    if not analysis:
+        raise PipelineError("Run the analysis first.")
+    return await _suggest(router, user, job_id, analysis, confirmed, progress)
+
+
+async def _suggest(router: ModelRouter, user: str, job_id: str, analysis: dict,
+                   confirmed: list[str], progress: Progress) -> dict:
+    jd = JDProfile(**analysis["jd"])
+    blocks = [Block(**b) for b in analysis["blocks"]]
+    before = analysis["score_before"]
+    confirmed = [c for c in confirmed if c in before["missing"]]
+    still_missing = [m for m in before["missing"] if m not in confirmed]
+
+    await progress("revise", "Writing revisions for this job"
+                   + (f" (using {len(confirmed)} confirmed skill(s))" if confirmed else ""))
     payload = {"job": jd.model_dump(exclude_none=True),
-               "blocks": [{"id": b.id, "kind": b.kind, "section": b.section, "text": b.text} for b in blocks],
-               "missing_keywords": before.missing}
+               "blocks": [{"id": b.id, "kind": b.kind, "section": b.section, "context": b.context,
+                           "text": b.text} for b in blocks],
+               "skills_not_shown": before["weak_placement"],
+               "confirmed_skills": confirmed,
+               "missing_skills": still_missing}
     revs, rev_model = await router.complete_json("revise", payload, RevisionSet)
 
-    await progress("guard", "Checking revisions for invented facts")
+    await progress("guard", "Fact-checking every revision and measuring its gain")
     by_id = {b.id: b for b in blocks}
-    resume_text = "\n".join(b.text for b in blocks) + "\n" + ats.pdf_facts(pdf)["text"]
+    resume_text = "\n".join(b.text for b in blocks) + "\n" + analysis["pdf_text"]
+    base = ats.text_points(jd, resume_text, _bullets(blocks))
     suggestions, rejected = [], []
     for r in revs.revisions:
         b = by_id.get(r.id)
         if not b or r.new_text.strip() == b.text:
             continue
-        why = check_revision(r, b.text, resume_text, jd)
-        item = {"id": r.id, "section": b.section, "kind": b.kind, "old": b.text,
-                "new": r.new_text.strip(), "reason": r.reason, "keywords_added": r.keywords_added}
-        (rejected if why else suggestions).append({**item, **({"rejected_because": why} if why else {})})
+        new = r.new_text.strip()
+        why = check_revision(r, b.text, resume_text, jd, confirmed, b.kind)
+        item = {"id": r.id, "section": b.section, "context": b.context, "kind": b.kind, "old": b.text,
+                "new": new, "reason": r.reason, "keywords_added": r.keywords_added}
+        if why:
+            rejected.append({**item, "rejected_because": why})
+            continue
+        gain = ats.text_points(jd, resume_text + "\n" + new, _bullets(blocks, {b.id: new})) - base
+        suggestions.append({**item, "gain": round(gain, 1)})
+    suggestions.sort(key=lambda s: -s["gain"])
 
-    result = {"jd": jd.model_dump(), "blocks": [b.to_dict() for b in blocks],
-              "score_before": before.to_dict(), "suggestions": suggestions, "rejected": rejected,
-              "missing_skills": revs.missing_skills, "advice": revs.general_advice,
-              "models": {"jd": jd_model, "revise": rev_model}}
-    storage.write(user, job_id, "analysis.json", result)
-    return {"stage": "analyzed", "suggestions": len(suggestions), "score_before": before.total}
+    accepted = {s["id"]: s["new"] for s in suggestions}
+    combined = round(ats.text_points(jd, resume_text + "\n" + "\n".join(accepted.values()),
+                                     _bullets(blocks, accepted)) - base, 1)
+
+    analysis.update({"suggestions": suggestions, "rejected": rejected, "confirmed_skills": confirmed,
+                     "missing_skills": still_missing, "advice": revs.general_advice,
+                     "projected_gain": combined})
+    analysis["models"]["revise"] = rev_model
+    storage.write(user, job_id, "analysis.json", analysis)
+    return {"stage": "analyzed", "suggestions": len(suggestions), "score_before": before["total"],
+            "projected_gain": combined}
 
 
 async def apply(user: str, job_id: str, edits: dict[str, str], progress: Progress) -> dict:
@@ -89,9 +135,7 @@ async def apply(user: str, job_id: str, edits: dict[str, str], progress: Progres
     storage.write(user, job_id, "revised.pdf", pdf)
 
     await progress("score", "Re-scoring")
-    by_id = {b.id: b for b in blocks}
-    bullets = [edits.get(b.id, b.text) for b in blocks if b.kind == "bullet"]
-    after = ats.score(JDProfile(**analysis["jd"]), pdf, bullets)
+    after = ats.score(JDProfile(**analysis["jd"]), pdf, _bullets(blocks, edits))
     result = {"score_before": analysis["score_before"]["total"], "score_after": after.to_dict(),
               "applied": sorted(edits)}
     storage.write(user, job_id, "result.json", result)

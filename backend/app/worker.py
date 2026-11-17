@@ -58,6 +58,11 @@ async def apply_job(ctx, user: str, job_id: str, edits: dict):
     return await _run(ctx, job_id, lambda: pipeline.apply(user, job_id, edits, _progress(ctx, job_id)))
 
 
+async def suggest_job(ctx, user: str, job_id: str, confirmed: list):
+    return await _run(ctx, job_id, lambda: pipeline.suggest(ctx["router"], user, job_id, confirmed,
+                                                            _progress(ctx, job_id)))
+
+
 async def sweep_tmp(ctx):
     removed = storage.sweep()
     if removed:
@@ -65,7 +70,7 @@ async def sweep_tmp(ctx):
 
 
 class WorkerSettings:
-    functions = [analyze_job, apply_job]
+    functions = [analyze_job, suggest_job, apply_job]
     cron_jobs = [cron(sweep_tmp, minute=set(range(0, 60, 5)), run_at_startup=True)]
     on_startup = startup
     on_shutdown = shutdown

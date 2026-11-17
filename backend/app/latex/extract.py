@@ -28,6 +28,7 @@ class Block:
     end: int
     source: str        # raw LaTeX of the content
     text: str          # plain text sent to the LLM
+    context: str = ""  # nearest entry heading above it, e.g. "PlanForge | PyTorch, YOLO11, FastAPI"
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -68,6 +69,24 @@ def match_brace(tex: str, open_idx: int) -> int:
     raise ValueError(f"unbalanced brace at {open_idx}")
 
 
+_HEADING_RE = re.compile(r"\\(resumeProjectHeading|resumeSubheading|resumeSubHeading|resumeSubSubheading|cventry)\s*\{")
+
+
+def _headings(tex: str) -> list[tuple[int, str]]:
+    """(position, plain text of all brace args) for each project/job heading macro."""
+    out = []
+    for m in _HEADING_RE.finditer(tex):
+        j, args = m.end() - 1, []
+        while j < len(tex) and tex[j] == "{":
+            close = match_brace(tex, j)
+            args.append(to_plain(tex[j + 1:close]))
+            j = close + 1
+            while j < len(tex) and tex[j] in " \t\n":
+                j += 1
+        out.append((m.start(), " | ".join(a for a in args if a)))
+    return out
+
+
 _SECTION_RE = re.compile(r"\\(?:section|cvsection|resumeSection)\*?\s*\{")
 _ENV_RE = re.compile(r"\\(begin|end)\{(" + "|".join(LIST_ENVS) + r")\}")
 
@@ -102,6 +121,20 @@ def _list_ranges(tex: str) -> list[tuple[int, int]]:
     return ranges
 
 
+def _balanced(seg: str) -> bool:
+    depth, i = 0, 0
+    while i < len(seg):
+        c = seg[i]
+        if c == "\\":
+            i += 2
+            continue
+        depth += (c == "{") - (c == "}")
+        if depth < 0:
+            return False
+        i += 1
+    return depth == 0
+
+
 def extract_blocks(tex: str) -> list[Block]:
     clean = strip_comments(tex)
     sections = _sections(clean)
@@ -112,6 +145,8 @@ def extract_blocks(tex: str) -> list[Block]:
         if (start, end) in seen or end <= start:
             return
         raw = tex[start:end]
+        if not _balanced(clean[start:end]):
+            return  # never offer a span whose replacement could unbalance the document
         # The Skills section is never rewritten: editing it is how invented skills sneak in.
         if "skill" in _section_at(sections, start).lower():
             return
@@ -144,6 +179,22 @@ def extract_blocks(tex: str) -> list[Block]:
             nested = re.search(r"\\begin\{", seg)
             if nested:
                 end = start + nested.start()
+            # Stop before a brace that closes an enclosing group (e.g. the "}" of a
+            # \small{ ... } wrapping the whole list), so the span is always balanced.
+            depth, k = 0, start
+            while k < end:
+                ch = clean[k]
+                if ch == "\\":
+                    k += 2
+                    continue
+                if ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth < 0:
+                        end = k
+                        break
+                k += 1
             # Trim trailing whitespace from the span
             while end > start and clean[end - 1].isspace():
                 end -= 1
@@ -165,8 +216,11 @@ def extract_blocks(tex: str) -> list[Block]:
             add("summary", start, end)
 
     blocks.sort(key=lambda b: b.start)
+    heads = _headings(clean)
     for n, b in enumerate(blocks, 1):
         b.id = f"b{n:02d}"
+        prior = [(p, t) for p, t in heads if p < b.start and _section_at(sections, p) == b.section]
+        b.context = prior[-1][1] if prior else ""
     return blocks
 
 
@@ -222,7 +276,7 @@ def to_plain(src: str) -> str:
                 out.append(" ")
             i = j
             continue
-        if c in "{}":
+        if c in "{}$":  # group braces and math-mode delimiters ($|$ separators)
             i += 1
             continue
         if c == "~":

@@ -96,18 +96,26 @@ function renderScore(el, title, rep) {
       <div class="bar"><i style="width:${(100 * c.score) / c.max}%"></i></div>
       <ul>${c.findings.map((f) => `<li>${esc(f)}</li>`).join("")}</ul></div>`;
   }
-  if (rep.missing?.length) h += `<label>Missing from your resume</label>${chips(rep.missing, "miss")}`;
+  if (rep.reword_gain || rep.locked) {
+    h += `<div class="split"><div><b>+${rep.reword_gain}</b> available by rewording<br><span class="hint">job skills you list but never show in a bullet</span></div>
+      <div><b>${rep.locked}</b> locked behind skills your resume doesn't show<br><span class="hint">only real skills can earn these, see below</span></div></div>`;
+  }
   el.innerHTML = h; el.hidden = false;
 }
 
 function renderRevisions(a) {
   const box = $("revs");
-  box.innerHTML = a.suggestions.length ? "" : `<p class="hint">No safe revisions suggested for this job.</p>`;
+  const before = Math.round(a.score_before.total);
+  box.innerHTML = a.suggestions.length
+    ? `<p class="projection">Accept all: <b>${before} → ~${Math.round(a.score_before.total + a.projected_gain)}</b> <span class="hint">(estimate; the exact score is computed from the rebuilt PDF)</span></p>`
+    : `<p class="hint">No safe revisions for this job yet. Confirm any skills below that you really have, then regenerate.</p>`;
   for (const s of a.suggestions) {
     const d = document.createElement("div");
     d.className = "rev";
-    d.innerHTML = `<header><input type="checkbox" checked data-id="${esc(s.id)}"><strong>${esc(s.section || s.kind)}</strong>
-      <span class="meta">${esc(s.reason)}${s.keywords_added?.length ? " · adds " + esc(s.keywords_added.join(", ")) : ""}</span></header>
+    const where = (s.context || s.section || s.kind).split(" | ")[0];
+    d.innerHTML = `<header><input type="checkbox" checked data-id="${esc(s.id)}"><strong>${esc(where)}</strong>
+      <span class="gain ${s.gain > 0 ? "pos" : ""}">${s.gain > 0 ? "+" + s.gain : "±0"}</span></header>
+      <div class="meta">${esc(s.reason)}${s.keywords_added?.length ? " · shows " + esc(s.keywords_added.join(", ")) : ""}</div>
       <div class="old">${esc(s.old)}</div><textarea rows="3" data-id="${esc(s.id)}">${esc(s.new)}</textarea>`;
     box.appendChild(d);
   }
@@ -116,10 +124,25 @@ function renderRevisions(a) {
     extra += `<details><summary>${a.rejected.length} suggestion(s) blocked by the fact check</summary>` +
       a.rejected.map((r) => `<div class="rev rejected"><div class="new">${esc(r.new)}</div><div class="why">Blocked: ${esc(r.rejected_because)}</div></div>`).join("") + `</details>`;
   }
-  if (a.missing_skills?.length) extra += `<label>Skills the job wants that your resume doesn't show</label>${chips(a.missing_skills, "miss")}<p class="hint">These are never added for you. Add them only if you really have them.</p>`;
+  const skills = [...(a.confirmed_skills || []), ...(a.missing_skills || [])];
+  if (skills.length) {
+    extra += `<label>Job skills your resume doesn't show</label>
+      <p class="hint">Tick only the ones you have really used. The rewrite will then work them into the right bullets.</p>
+      <div class="chips">${skills.map((k) => `<label class="chip pick"><input type="checkbox" value="${esc(k)}" ${a.confirmed_skills?.includes(k) ? "checked" : ""}> ${esc(k)}</label>`).join("")}</div>
+      <button id="resuggest" type="button" class="secondary">Regenerate with the ticked skills</button>`;
+  }
   if (a.advice?.length) extra += `<label>Advice</label><ul>${a.advice.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
   $("extra").innerHTML = extra;
   $("revcard").hidden = false;
+  const rs = $("resuggest");
+  if (rs) rs.onclick = async () => {
+    const confirmed = [...document.querySelectorAll("#extra .pick input:checked")].map((x) => x.value);
+    rs.disabled = true;
+    const r = await api(`/api/jobs/${jobId}/suggest`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmed_skills: confirmed }) });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { rs.disabled = false; return alert(body.detail || `Error ${r.status}`); }
+    listen(onAnalyzed, "analyzed", body.from);
+  };
 }
 
 $("apply").onclick = async () => {

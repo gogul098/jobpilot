@@ -1,0 +1,139 @@
+%-------------------------
+% Resume of Gogulakrishnan G
+% Layout based on Jake Gutierrez's resume template (MIT license)
+% Single column, real text layer, standard headings: ATS friendly.
+% Works with JobPilot: bullets use \resumeItem{...}, the Summary is a plain paragraph.
+%-------------------------
+\documentclass[a4paper,10pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\input{glyphtounicode}
+\pdfgentounicode=1
+
+\pagestyle{empty}
+\addtolength{\oddsidemargin}{-0.55in}
+\addtolength{\evensidemargin}{-0.55in}
+\addtolength{\textwidth}{1.1in}
+\addtolength{\topmargin}{-.65in}
+\addtolength{\textheight}{1.3in}
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{\vspace{-6pt}\scshape\raggedright\large\bfseries}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1 \vspace{-2.5pt}}}}
+\newcommand{\resumeProjectHeading}[2]{
+  \item
+  \begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
+    \small#1 & \small#2 \\
+  \end{tabular*}\vspace{-6pt}
+}
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.18in, itemsep=0pt, topsep=2pt]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-3pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \scshape Gogulakrishnan G} \\ \vspace{2pt}
+    \small Chennai, India $|$ +91 90000 00000 $|$
+    \href{mailto:you@example.com}{you@example.com} \\
+    \href{https://www.linkedin.com/in/g-gogulakrishnan-a9a725323/}{\underline{linkedin.com/in/g-gogulakrishnan-a9a725323}} $|$
+    \href{https://github.com/gogul098}{\underline{github.com/gogul098}} $|$
+    \href{https://leetcode.com/u/Gogulakrishnan234/}{\underline{leetcode.com/u/Gogulakrishnan234}}
+\end{center}
+
+%----------SUMMARY----------
+\section{Summary}
+\small{Third-year AI Engineering student focused on applied machine learning, long-document LLM systems and computer vision. I train and evaluate my own models: PlanForge (floor plans to 3D BIM) and a Hyena + Llama hybrid for legal judgments. Looking for a Summer 2027 AI/ML or research internship.}
+
+%----------EDUCATION----------
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeProjectHeading
+      {\textbf{Amrita Vishwa Vidyapeetham, Chennai} $|$ \emph{B.Tech, Artificial Intelligence Engineering $|$ CGPA 8.428/10}}{Expected 2028}
+  \resumeSubHeadingListEnd
+
+%----------SKILLS----------
+\section{Skills}
+ \begin{itemize}[leftmargin=0in, label={}]
+    \small{\item{
+     \textbf{Languages}{: Python, SQL, Kotlin, Java} \\
+     \textbf{Machine Learning}{: PyTorch, Hugging Face Transformers, PEFT (QLoRA), segmentation-models-pytorch, Ultralytics YOLO, Scikit-learn, Statsmodels, multi-GPU training (DDP, fp16)} \\
+     \textbf{Vision \& 3D}{: OpenCV, OCR, Shapely, IfcOpenShell (IFC4), three.js, Revit API} \\
+     \textbf{Data}{: Pandas, NumPy, PostgreSQL} \\
+     \textbf{Engineering}{: FastAPI, Django, Celery, Redis, React, Docker, Git, GitHub Actions, Azure}
+    }}
+ \end{itemize}
+
+%----------PROJECTS----------
+\section{Projects}
+  \resumeSubHeadingListStart
+
+    \resumeProjectHeading
+      {\textbf{PlanForge: 2D Floor Plan to 3D BIM and Revit} $|$ \emph{PyTorch, YOLO11, FastAPI, three.js, IFC}}{\href{https://github.com/gogul098/planforge}{\underline{GitHub}} $|$ 2026}
+      \resumeItemListStart
+        \resumeItem{Converts floor plans (DXF, PDF, PNG, JPG) into measured 3D building models with walls, doors, windows, stairs, rooms and furniture, exported as IFC4, glTF and a native Revit build script, with a three.js BIM viewer and editor.}
+        \resumeItem{Trained a multitask U-Net (EfficientNet-B3, 768 px) on CubiCasa5K for 12 room and 12 icon classes, reaching 0.747 mean IoU on validation, with DDP, fp16 and EMA on 2x T4 GPUs.}
+        \resumeItem{Trained a YOLO11m-OBB furniture detector on FloorPlanCAD (18 classes, mAP50 about 0.87) that keeps each object's rotation and snaps it to the nearest wall.}
+        \resumeItem{Recovered exact scale by reading dimension strings with OCR and solving by least squares; vectorised masks into joined walls with hosted openings, keeping 99\% of predicted wall pixels on test plans.}
+        \resumeItem{Packaged the engine with Docker; CI deploys the site to Azure Static Web Apps.}
+      \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{Hybrid Legal SLM: IPC Section Prediction} $|$ \emph{PyTorch, Hyena, Llama-3.2 QLoRA, FastAPI}}{\href{https://github.com/gogul098/Deep_learning_end_sem_project}{\underline{GitHub}} $|$ 2026}
+      \resumeItemListStart
+        \resumeItem{Predicts the IPC sections in full Supreme Court judgments (often over 30k tokens) with evidence sentences, on a temporal split (train up to 2020, test 2023 onward) with section numbers masked to block leakage.}
+        \resumeItem{Ran a Hyena long-convolution encoder over frozen InLegalBERT sentence vectors, then a Llama-3.2-3B QLoRA verifier on its shortlist, fused with per-section thresholds tuned on dev; trained on Kaggle 2x T4.}
+        \resumeItem{Reached 0.635 micro-F1 and 0.446 macro-F1 over 100 sections, against 0.283 for zero-shot Llama and 0.361 for fine-tuned Llama; recall@10 0.786; F1 held from 0.695 to 0.648 as documents grew from 4k to 18k tokens.}
+        \resumeItem{Peak VRAM stays near 4.3 GB up to 32k tokens, where plain Llama runs out of memory; shipped as an offline FastAPI assistant with a Bayesian router that answers, searches a legal library or asks for clarification.}
+      \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{Verolyx: Bank Statement Underwriting (Production, Private Repo)} $|$ \emph{Python, Gemini, HDBSCAN, Azure}}{2026}
+      \resumeItemListStart
+        \resumeItem{Production ingestion service on Azure App Service that turns Indian bank statements into an underwriting report: net verifiable income, FOIR and maximum permissible EMI.}
+        \resumeItem{Dual-mode ingestion: detects born-digital PDFs by text density and parses them locally with pdfplumber at zero API cost; only scanned statements go to Gemini vision OCR, which finds column pixel bounds before reading rows.}
+        \resumeItem{Categorizes transactions without labelled data, combining MiniLM embeddings, character TF-IDF and amount/cadence features with HDBSCAN clustering and cohesion checks that split mixed clusters.}
+        \resumeItem{Explains every row (leave-one-out token attribution, runner-up margin, payment-rail checks) and audits the balance chain to flag inconsistent statements.}
+      \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{Aadhaar Insight AI (UIDAI Hackathon, National Finalist)} $|$ \emph{Python, Scikit-learn, Statsmodels, Streamlit}}{\href{https://github.com/gogul098/UIDAI}{\underline{GitHub}} $|$ 2025}
+      \resumeItemListStart
+        \resumeItem{Merged three UIDAI datasets (enrolment, biometric updates, demographic updates) into one 2.9M-record, PIN-code-level set (Mar--Dec 2025), cleaning inconsistent state names with RapidFuzz.}
+        \resumeItem{Flagged the top 5\% outlier PIN codes (991) with Isolation Forest on scaled enrolment and update features, and forecast 30-day enrolment demand with Holt-Winters smoothing.}
+        \resumeItem{Built migration-intensity, weighted-effort and district-urgency metrics and a Streamlit dashboard that suggests where to send Aadhaar kits and update-only kiosks.}
+      \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{iTantra: Offline Multilingual Communication (SIH)} $|$ \emph{Kotlin, Java, Python, NumPy}}{\href{https://github.com/gogul098/itantra-repo}{\underline{GitHub}} $|$ 2026}
+      \resumeItemListStart
+        \resumeItem{SIH prototype for speech translation between two phones with no internet: offline speech recognition and a semantic embedding, INT8-quantized into a compact packet for a local wireless link, with a phrase cache on the receiver.}
+      \resumeItemListEnd
+
+  \resumeSubHeadingListEnd
+
+%----------ACHIEVEMENTS----------
+\section{Achievements}
+ \begin{itemize}[leftmargin=0.18in, itemsep=0pt, topsep=2pt]
+    \small{
+    \item \href{https://github.com/gogul098/UIDAI}{National Finalist, UIDAI Hackathon 2025} $|$ \href{https://github.com/gogul098/SIHimpo}{Top 500 teams nationwide, Smart India Hackathon 2025}
+    \item Participant, Mumbai Hacks (built and pitched a working prototype under time limits) $|$ \href{https://github.com/gogul098/Reddit-bot}{Built ModPilot for the Reddit hackathon}
+    }
+ \end{itemize}
+
+\end{document}

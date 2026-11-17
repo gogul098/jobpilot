@@ -15,16 +15,24 @@ def _in(term: str, hay: str) -> bool:
     return re.search(r"(?<![a-z0-9])" + re.escape(term.lower()) + r"(?![a-z0-9])", hay) is not None
 
 
-def check_revision(rev: Revision, original: str, resume_text: str, jd: JDProfile) -> str | None:
-    """Return a rejection reason, or None if the revision is safe to show."""
+def check_revision(rev: Revision, original: str, resume_text: str, jd: JDProfile,
+                   confirmed: list[str] | tuple = (), kind: str = "bullet") -> str | None:
+    """Return a rejection reason, or None if the revision is safe to show.
+
+    `confirmed` are skills the user ticked as "I really have this"; they count as part of the resume.
+    """
     new = rev.new_text.strip()
     if not new:
         return "empty text"
     if "\\" in new or re.search(r"\$.*\$", new):
         return "contains LaTeX markup"
-    if len(new) > max(60, int(len(original) * 1.35)):
+    limit = max(450, int(len(original) * 1.6)) if kind == "summary" else max(60, int(len(original) * 1.35))
+    if len(new) > limit:
         return "much longer than the original"
-    hay = resume_text.lower()
+    extra = []
+    for c in confirmed:
+        extra += variants(c, [])
+    hay = (resume_text + "\n" + "\n".join(extra)).lower()
     nums = set(_NUM.findall(resume_text))
     for n in _NUM.findall(new):
         if n not in nums:

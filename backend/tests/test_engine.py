@@ -94,3 +94,13 @@ def test_temp_storage_sweep_and_delete(tmp_path, monkeypatch):
     assert storage.read("me", "jobB", "original.tex") == b"y"
     storage.delete("me", "jobB")
     assert not (tmp_path / "me" / "jobB").exists()
+
+
+def test_every_block_can_be_replaced_and_compiles():
+    """Replace every editable block of the real resume with text full of special characters."""
+    for f in sorted((Path(__file__).parent / "fixtures").glob("*.tex")):
+        tex = f.read_text()
+        blocks = extract_blocks(tex)
+        edits = {b.id: "Rewrote 50% of {this} & more_text #1 ~ ^ \\ done" for b in blocks}
+        res = compile_pdf(apply_revisions(tex, blocks, edits))
+        assert res.ok, res.log

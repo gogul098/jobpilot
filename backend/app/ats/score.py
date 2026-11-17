@@ -51,6 +51,8 @@ class ATSReport:
     matched: list[str]
     missing: list[str]
     weak_placement: list[str]   # only found in the Skills list, not shown in any bullet
+    reword_gain: float = 0.0    # points available by showing weak_placement terms in bullets
+    locked: float = 0.0         # points only real, added skills can earn (missing terms)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -101,8 +103,7 @@ def _found(term_variants: list[str], hay: str) -> bool:
     return False
 
 
-def keyword_component(jd: JDProfile, full_text: str, bullet_text: str) -> tuple[Component, list, list, list]:
-    hay, bhay = _norm(full_text), _norm(bullet_text)
+def _items(jd: JDProfile) -> list[tuple[str, list[str], float]]:
     items: list[tuple[str, list[str], float]] = []
     for s in jd.hard_skills:
         items.append((s.name, variants(s.name, s.aliases), 2.0 if s.importance == "must" else 1.0))
@@ -110,6 +111,27 @@ def keyword_component(jd: JDProfile, full_text: str, bullet_text: str) -> tuple[
     for k in jd.keywords:
         if _norm(k) not in have:
             items.append((k, variants(k, []), 0.5))
+    return items
+
+
+def keyword_split(jd: JDProfile, weak: list[str], missing: list[str]) -> tuple[float, float]:
+    """(points gainable by moving weak terms into bullets, points locked behind missing skills)."""
+    items = _items(jd)
+    total = sum(w for _, _, w in items) or 1.0
+    wt = {n: w for n, _, w in items}
+    return (round(35 * 0.3 * sum(wt.get(n, 0) for n in weak) / total, 1),
+            round(35 * sum(wt.get(n, 0) for n in missing) / total, 1))
+
+
+def text_points(jd: JDProfile, full_text: str, bullets: list[str]) -> float:
+    """Keyword + bullet points for a candidate edit, without recompiling the PDF."""
+    kw = keyword_component(jd, full_text, "\n".join(bullets))[0]
+    return kw.score + bullet_component(bullets).score
+
+
+def keyword_component(jd: JDProfile, full_text: str, bullet_text: str) -> tuple[Component, list, list, list]:
+    hay, bhay = _norm(full_text), _norm(bullet_text)
+    items = _items(jd)
     if not items:
         return Component("keywords", 35, 35, ["No skills found in the job description."]), [], [], []
     got = total = 0.0
@@ -215,4 +237,5 @@ def score(jd: JDProfile, pdf: bytes, bullets: list[str]) -> ATSReport:
     comps = [parse_component(facts), kw, section_component(facts["text"]),
              bullet_component(bullets), length_component(facts)]
     total = round(sum(c.score for c in comps), 1)
-    return ATSReport(total, comps, matched, missing, weak)
+    gain, locked = keyword_split(jd, weak, missing)
+    return ATSReport(total, comps, matched, missing, weak, gain, locked)

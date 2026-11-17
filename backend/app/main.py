@@ -3,6 +3,7 @@
 POST /api/analyze            form: jd_text, tex_file | tex_text   -> {job_id}
 GET  /api/jobs/{id}          status + analysis/result JSON
 GET  /api/jobs/{id}/events   Server-Sent Events (replays history, then live)
+POST /api/jobs/{id}/suggest  {"confirmed_skills": ["Docker"]}  re-suggest using skills you really have
 POST /api/jobs/{id}/apply    {"edits": {"b03": "new text", ...}}
 GET  /api/jobs/{id}/files/{original.pdf|revised.pdf|revised.tex}
 DELETE /api/jobs/{id}         delete the job's temporary files now
@@ -77,6 +78,23 @@ async def analyze(jd_text: str = Form(...), tex_file: UploadFile | None = File(N
 
 class ApplyBody(BaseModel):
     edits: dict[str, str]
+
+
+class SuggestBody(BaseModel):
+    confirmed_skills: list[str]
+
+
+@app.post("/api/jobs/{job_id}/suggest")
+async def resuggest(job_id: str, body: SuggestBody, user: str = Depends(current_user)):
+    """Re-run revisions after the user confirms job skills they really have."""
+    _check_job(user, job_id)
+    if storage.read(user, job_id, "analysis.json") is None:
+        raise HTTPException(409, "analysis not finished")
+    start = await count(app.state.redis, job_id)
+    await emit(app.state.redis, job_id, "queue", "queued", "Waiting for a worker")
+    await app.state.redis.enqueue_job("suggest_job", user, job_id, body.confirmed_skills[:30],
+                                      _job_id=f"sg-{job_id}-{uuid.uuid4().hex[:6]}")
+    return {"job_id": job_id, "from": start}
 
 
 @app.post("/api/jobs/{job_id}/apply")

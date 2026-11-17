@@ -18,17 +18,21 @@ def mock_response(task: str, payload: dict) -> dict:
                 "keywords": [], "apply_email": email.group(0) if email else None,
                 "responsibilities": [], "eligibility": [], "interview_focus": ["Mock mode: set GROQ_API_KEY"]}
     if task == "revise":
-        missing = payload.get("missing_keywords", [])
         revs = []
+        terms = payload.get("skills_not_shown", []) + payload.get("confirmed_skills", [])
         bullets = [b for b in payload["blocks"] if b["kind"] == "bullet"]
         for b in bullets:
             new = re.sub(r"^(Made|Created|Did)\b", "Developed", b["text"])
             if new != b["text"]:
                 revs.append({"id": b["id"], "new_text": new, "keywords_added": [],
                              "reason": "Mock: stronger opening verb."})
+        for t, b in zip(terms, reversed(bullets)):
+            revs.append({"id": b["id"], "new_text": b["text"].rstrip(".") + f" using {t}",
+                         "reason": f"Mock: shows {t} in a bullet.", "keywords_added": [t]})
         if bullets:  # an invented claim, to show the fact check blocking it
             b = bullets[0]
             revs.append({"id": b["id"], "new_text": b["text"] + ", deployed on Kubernetes",
                          "reason": "Mock: adds a JD keyword.", "keywords_added": ["Kubernetes"]})
-        return {"revisions": revs, "missing_skills": missing, "general_advice": ["Mock mode is on."]}
+        return {"revisions": revs, "missing_skills": payload.get("missing_skills", []),
+                "general_advice": ["Mock mode is on."]}
     raise KeyError(task)
