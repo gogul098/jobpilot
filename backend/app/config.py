@@ -28,7 +28,7 @@ class Settings:
     llm_cache_ttl: int = int(os.getenv("LLM_CACHE_TTL", "3600"))  # cached model output expires with the job
     worker_concurrency: int = int(os.getenv("WORKER_CONCURRENCY", "4"))
 
-    latex_engine: str = os.getenv("LATEX_ENGINE", "tectonic")  # tectonic | pdflatex
+    latex_engine: str = os.getenv("LATEX_ENGINE", "pdflatex")  # pdflatex | tectonic
     compile_timeout: int = int(os.getenv("COMPILE_TIMEOUT", "25"))
 
     llm_mock: bool = os.getenv("LLM_MOCK", "") == "1"  # offline demo / tests

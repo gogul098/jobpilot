@@ -17,7 +17,9 @@ services:
       - key: JOB_TTL
         value: "3600"            # temp files deleted 1 hour after last use
       - key: LATEX_ENGINE
-        value: tectonic
+        value: pdflatex
+      - key: COMPILE_TIMEOUT
+        value: "60"              # free plan has 0.1 CPU
       - key: WORKER_CONCURRENCY
         value: "2"               # free instance: 512 MB RAM, 0.1 CPU
       - key: APP_TOKEN

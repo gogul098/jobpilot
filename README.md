@@ -41,7 +41,7 @@ Each task's instructions and exact output JSON live in a markdown file that is s
 - `extract.py` finds `\item` bullets in list environments, `\resumeItem{}` / `\cvitem{}` style macros, and the Summary paragraph. It records exact source offsets and converts each block to plain text. Comments are ignored. The **Skills section is never editable**, so new skills can't be slipped in.
 - `apply.py` escapes `& % $ # _ { } ~ ^ \`, re-applies `\textbf{}` to terms that were bold, and splices the new text into the recorded span, last block first.
 - `compile.py`:
-  - Runs Tectonic `--untrusted`, or pdflatex `-no-shell-escape` with paranoid file access.
+  - Runs pdflatex `-no-shell-escape` with paranoid file access (TeX Live is preinstalled in the image, so nothing downloads at runtime). Tectonic `--untrusted` is optional via `LATEX_ENGINE=tectonic`.
   - Blocks `\write18`, `\openin`/`\openout`, absolute and `..` inputs, `\directlua` and `\catcode`.
   - Has a timeout and a size limit.
   - In production, run the worker in its own container.
@@ -105,7 +105,7 @@ Steps:
 
 Free-tier notes:
 - The service sleeps after about 15 minutes idle, so the first visit takes 30–60 s to wake.
-- The first build takes several minutes, because Tectonic downloads its LaTeX packages once, at build time.
+- The first build takes several minutes, because it installs TeX Live into the image.
 - 512 MB RAM, so `WORKER_CONCURRENCY` is 2.
 - Free Key Value doesn't persist across restarts. That only clears the queue and the cache.
 - For something always on, move the service to the Starter plan, or use Upstash Redis and point `REDIS_URL` to it.

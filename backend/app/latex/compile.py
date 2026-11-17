@@ -47,8 +47,13 @@ def compile_pdf(tex: str, timeout: int | None = None) -> CompileResult:
     try:
         with open(os.path.join(work, "resume.tex"), "w", encoding="utf-8") as f:
             f.write(tex)
-        env = {"PATH": os.environ.get("PATH", ""), "HOME": work,
+        # Keep the real HOME / cache dir: Tectonic's package cache lives there (warmed at
+        # build time). Pointing HOME at the temp dir forced a full re-download on every compile.
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": os.environ.get("HOME", work),
                "openin_any": "p", "openout_any": "p", "shell_escape": "f", "TEXMFOUTPUT": work}
+        for k in ("TECTONIC_CACHE_DIR", "XDG_CACHE_HOME", "SSL_CERT_FILE", "HTTPS_PROXY", "https_proxy"):
+            if os.environ.get(k):
+                env[k] = os.environ[k]
         engine = settings.latex_engine
         if engine == "tectonic" and shutil.which("tectonic"):
             cmd = ["tectonic", "--untrusted", "--keep-logs", "--outdir", work, "resume.tex"]

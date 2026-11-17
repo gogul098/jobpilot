@@ -1,12 +1,13 @@
-# One image for both the API and the worker (different start commands).
+# One image for the API and the worker (Render runs both via start.sh).
 FROM python:3.12-slim
 
-# Tectonic: self-contained LaTeX engine, fetches only the packages a resume needs.
-ARG TECTONIC_VERSION=0.15.0
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates fontconfig \
- && curl -fsSL "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40${TECTONIC_VERSION}/tectonic-${TECTONIC_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
-    | tar -xz -C /usr/local/bin \
- && apt-get purge -y curl && rm -rf /var/lib/apt/lists/*
+# TeX Live from Debian: every package is installed at build time, so compiles never
+# download anything and finish in a few seconds even on a small CPU.
+# latex-extra covers titlesec, enumitem, tabularx, fullpage... (Jake's Resume, Deedy, most Overleaf CVs).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      texlive-latex-base texlive-latex-recommended texlive-latex-extra \
+      texlive-fonts-recommended lmodern cm-super \
+ && rm -rf /var/lib/apt/lists/* /usr/share/doc/*
 
 RUN useradd -m -u 1000 app
 WORKDIR /srv
@@ -18,11 +19,12 @@ COPY start.sh /srv/start.sh
 RUN chown -R app /srv
 USER app
 
-# Warm Tectonic's package cache at build time so compiles are fast and need no network later.
-RUN cd /tmp && tectonic --keep-logs /srv/backend/tests/fixtures/jake_resume.tex || true
+# Fail the build early if the sample resume can't compile.
+RUN mkdir -p /tmp/chk && cd /tmp/chk \
+ && pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error /srv/backend/tests/fixtures/jake_resume.tex >/dev/null \
+ && rm -rf /tmp/chk
 
 WORKDIR /srv/backend
-ENV TMP_DIR=/tmp/jobpilot LATEX_ENGINE=tectonic PYTHONUNBUFFERED=1
+ENV TMP_DIR=/tmp/jobpilot LATEX_ENGINE=pdflatex PYTHONUNBUFFERED=1
 EXPOSE 8000
-# Default: API + worker in one container (Render free tier). Compose overrides the worker command.
 CMD ["sh", "/srv/start.sh"]
