@@ -1,0 +1,81 @@
+%-------------------------
+% Resume in LaTeX, based on Jake Gutierrez's template (MIT)
+%-------------------------
+\documentclass[letterpaper,11pt]{article}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
+\pagestyle{empty}
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+\titleformat{\section}{\vspace{-4pt}\scshape\raggedright\large}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+\pdfgentounicode=1
+
+\newcommand{\resumeItem}[1]{\item\small{{#1 \vspace{-2pt}}}}
+\newcommand{\resumeProjectHeading}[2]{
+  \item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    \small#1 & #2 \\
+  \end{tabular*}\vspace{-7pt}
+}
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+
+\begin{center}
+    \textbf{\Huge \scshape Gogulakrishnan G} \\ \vspace{1pt}
+    \small +91 90000 00000 $|$ \href{mailto:you@example.com}{\underline{you@example.com}} $|$
+    \href{https://github.com/gogul098}{\underline{github.com/gogul098}}
+\end{center}
+
+\section{Summary}
+Third-year AI Engineering student focused on applied machine learning, long-document LLM systems and computer vision. I train and evaluate my own models.
+
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeProjectHeading
+      {\textbf{Amrita Vishwa Vidyapeetham, Chennai} $|$ \emph{B.Tech, Artificial Intelligence Engineering}}{2024 -- 2028}
+  \resumeSubHeadingListEnd
+
+\section{Projects}
+    \resumeSubHeadingListStart
+      \resumeProjectHeading
+          {\textbf{PlanForge} $|$ \emph{PyTorch, YOLO11, FastAPI, three.js}}{2026}
+          \resumeItemListStart
+            \resumeItem{Trained a multitask U-Net (EfficientNet-B3, 768 px) on CubiCasa5K for 12 room \& 12 icon classes, reaching \textbf{0.747} mean IoU}
+            \resumeItem{Built a YOLO11m-OBB furniture detector on FloorPlanCAD (18 classes, mAP50 about 0.87)}
+            \resumeItem{Recovered exact scale by reading dimension strings with OCR and solving by least squares} % keep
+          \resumeItemListEnd
+      \resumeProjectHeading
+          {\textbf{Hybrid Legal SLM} $|$ \emph{PyTorch, Hyena, Llama-3.2 QLoRA}}{2026}
+          \resumeItemListStart
+            \resumeItem{Made a Hyena encoder over InLegalBERT vectors with a Llama-3.2-3B QLoRA verifier; 0.635 micro-F1 vs 0.283 zero-shot}
+          \resumeItemListEnd
+    \resumeSubHeadingListEnd
+
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \textbf{Languages}{: Python, SQL, Java} \\
+     \textbf{ML}{: PyTorch, Hugging Face Transformers, PEFT, Scikit-learn} \\
+     \textbf{Tools}{: Docker, Git, FastAPI, Azure}
+    }}
+ \end{itemize}
+
+\end{document}
