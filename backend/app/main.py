@@ -13,12 +13,13 @@ from __future__ import annotations
 import asyncio
 import json
 import secrets
+import time
 import uuid
 from pathlib import Path
 
 from arq import create_pool
 from arq.connections import RedisSettings
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -58,6 +59,20 @@ def current_user(x_app_token: str | None = Header(None), token: str | None = Que
     return settings.default_user
 
 
+async def rate_limit(request: Request):
+    """Fixed-window limit per client IP on endpoints that spend LLM quota."""
+    if settings.hourly_limit <= 0:
+        return
+    fwd = request.headers.get("x-forwarded-for", "")
+    ip = fwd.split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    key = f"rate:{ip}:{int(time.time() // 3600)}"
+    n = await app.state.redis.incr(key)
+    if n == 1:
+        await app.state.redis.expire(key, 3700)
+    if n > settings.hourly_limit:
+        raise HTTPException(429, f"Hourly limit of {settings.hourly_limit} analyses reached. Try again next hour.")
+
+
 def _check_job(user: str, job_id: str):
     try:
         storage.job_dir(user, job_id)
@@ -69,7 +84,8 @@ def _check_job(user: str, job_id: str):
 
 @app.post("/api/analyze")
 async def analyze(jd_text: str = Form(...), tex_file: UploadFile | None = File(None),
-                  tex_text: str | None = Form(None), user: str = Depends(current_user)):
+                  tex_text: str | None = Form(None), user: str = Depends(current_user),
+                  _rl: None = Depends(rate_limit)):
     if not jd_text.strip() or len(jd_text) > MAX_JD:
         raise HTTPException(400, "job description is empty or too long")
     tex = (await tex_file.read()).decode("utf-8", "replace") if tex_file else (tex_text or "")
@@ -96,7 +112,8 @@ class SuggestBody(BaseModel):
 
 
 @app.post("/api/jobs/{job_id}/suggest")
-async def resuggest(job_id: str, body: SuggestBody, user: str = Depends(current_user)):
+async def resuggest(job_id: str, body: SuggestBody, user: str = Depends(current_user),
+                    _rl: None = Depends(rate_limit)):
     """Re-run revisions after the user confirms job skills they really have."""
     _check_job(user, job_id)
     if storage.read(user, job_id, "analysis.json") is None:

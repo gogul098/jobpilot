@@ -18,6 +18,10 @@ class Settings:
     # Also allow this regex, e.g. Vercel preview URLs of this project.
     cors_origin_regex: str = os.getenv("CORS_ORIGIN_REGEX", r"https://jobpilot[a-z0-9-]*\.vercel\.app")
 
+    # Requests per IP per hour that start LLM work (analyze/suggest). Protects your Groq quota
+    # when the access key is built into the public web app.
+    hourly_limit: int = int(os.getenv("HOURLY_LIMIT", "20"))
+
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     # Ordered by preference. Each model has its own rate-limit budget on Groq.
     groq_models: list[str] = field(default_factory=lambda: _list(

@@ -100,7 +100,9 @@ The website lives in `web/` (Vite + React, neo-brutalist design). It calls the R
 3. Under **Environment Variables**, add `VITE_API_URL` = your Render URL, e.g. `https://jobpilot-xxxx.onrender.com` (no trailing slash).
 4. Deploy. Then copy the Vercel URL (e.g. `https://jobpilot.vercel.app`) into Render → jobpilot → Environment → `CORS_ORIGINS`, and save.
    Preview deployments named `jobpilot-*.vercel.app` are already allowed by `CORS_ORIGIN_REGEX`.
-5. Open the site, click **Add access key**, and paste `APP_TOKEN` from Render.
+5. Access key, pick one:
+   - **Automatic (no typing):** add `VITE_APP_TOKEN` in Vercel with the same value as `APP_TOKEN` in Render, then redeploy. The key box disappears. The key is then visible in the site's JavaScript, so anyone with the URL can use the app; `HOURLY_LIMIT` (default 20 analyses per IP per hour) protects your Groq quota.
+   - **Private:** leave `VITE_APP_TOKEN` empty and open `https://your-site.vercel.app/?key=YOUR_APP_TOKEN` once per browser. The key is saved and removed from the address bar.
 
 Local dev: `cd web && npm install && npm run dev`. `/api` is proxied to `http://localhost:8000`, so no CORS setup is needed.
 

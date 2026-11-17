@@ -26,6 +26,8 @@ services:
         generateValue: true      # copy it from the dashboard and paste into the page
       - key: CORS_ORIGINS
         value: https://jobpilot.vercel.app    # change to your Vercel URL (comma-separate several)
+      - key: HOURLY_LIMIT
+        value: "20"              # analyses per IP per hour; protects your Groq quota
       - key: GROQ_API_KEY
         sync: false              # you enter it in the dashboard
       - key: GROQ_MODELS

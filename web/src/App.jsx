@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, getToken, setToken } from "./api.js";
+import { api, BUILT_IN_TOKEN, getToken, setToken } from "./api.js";
 
 const STEPS = ["Paste the job", "Get scored", "Pick rewrites", "Download PDF"];
 const COMPONENT_NAMES = {
@@ -11,8 +11,8 @@ const COMPONENT_NAMES = {
 };
 
 export default function App() {
-  const [token, setTok] = useState(getToken());
-  const [showKey, setShowKey] = useState(!getToken());
+  const [token, setTok] = useState(() => getToken());
+  const [showKey, setShowKey] = useState(() => !getToken());
   const [jd, setJd] = useState("");
   const [file, setFile] = useState(null);
   const [phase, setPhase] = useState("idle"); // idle | analyzing | review | applying | done
@@ -93,12 +93,14 @@ export default function App() {
                 title={awake === false ? "Server is asleep or unreachable; the first request wakes it" : "Server status"}>
             {awake === null ? "Checking server" : awake ? "Server ready" : "Server waking up"}
           </span>
-          <button className="btn small" onClick={() => setShowKey((v) => !v)} aria-expanded={showKey}>
-            {token ? "Access key" : "Add access key"}
-          </button>
+          {!BUILT_IN_TOKEN && (
+            <button className="btn small" onClick={() => setShowKey((v) => !v)} aria-expanded={showKey}>
+              {token ? "Access key" : "Add access key"}
+            </button>
+          )}
         </div>
       </header>
-      {showKey && (
+      {showKey && !BUILT_IN_TOKEN && (
         <div className="keybar">
           <label htmlFor="tok">Access key (APP_TOKEN from Render)</label>
           <input id="tok" type="password" value={token} onChange={(e) => saveToken(e.target.value.trim())} placeholder="Paste it once; this browser remembers it" />

@@ -1,9 +1,27 @@
 // Thin client for the JobPilot backend (FastAPI on Render).
 const BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 const KEY = "jp_token";
+// Set VITE_APP_TOKEN in Vercel to load the access key automatically for every visitor.
+export const BUILT_IN_TOKEN = (import.meta.env.VITE_APP_TOKEN || "").trim();
+
+/** A link like https://site/?key=XYZ saves the key once and removes it from the address bar. */
+function keyFromLink() {
+  try {
+    const url = new URL(window.location.href);
+    const k = url.searchParams.get("key");
+    if (!k) return "";
+    url.searchParams.delete("key");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    localStorage.setItem(KEY, k.trim());
+    return k.trim();
+  } catch { return ""; }
+}
 
 export const getToken = () => {
-  try { return localStorage.getItem(KEY) || ""; } catch { return ""; }
+  if (BUILT_IN_TOKEN) return BUILT_IN_TOKEN;
+  const linked = keyFromLink();
+  if (linked) return linked;
+  try { return localStorage.getItem(KEY) || BUILT_IN_TOKEN; } catch { return BUILT_IN_TOKEN; }
 };
 export const setToken = (t) => {
   try { localStorage.setItem(KEY, t); } catch { /* private mode: keep in memory only */ }
@@ -17,7 +35,13 @@ async function call(path, opts = {}, token) {
     throw new Error("Can't reach the server. On Render's free plan it sleeps when idle: wait 30-60 seconds and try again.");
   }
   const body = await r.json().catch(() => ({}));
-  if (r.status === 401) throw new Error("Access token is wrong or missing. Copy APP_TOKEN from Render > jobpilot > Environment.");
+  if (r.status === 401) {
+    try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+    throw new Error(BUILT_IN_TOKEN
+      ? "The site's access key doesn't match the server. Set VITE_APP_TOKEN in Vercel to the same value as APP_TOKEN in Render, then redeploy."
+      : "Access key is wrong or missing. Copy APP_TOKEN from Render > jobpilot > Environment.");
+  }
+  if (r.status === 429) throw new Error(typeof body.detail === "string" ? body.detail : "Too many requests. Try again later.");
   if (!r.ok) throw new Error(typeof body.detail === "string" ? body.detail : `Server error ${r.status}`);
   return body;
 }
