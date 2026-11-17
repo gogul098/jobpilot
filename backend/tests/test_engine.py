@@ -104,3 +104,11 @@ def test_every_block_can_be_replaced_and_compiles():
         edits = {b.id: "Rewrote 50% of {this} & more_text #1 ~ ^ \\ done" for b in blocks}
         res = compile_pdf(apply_revisions(tex, blocks, edits))
         assert res.ok, res.log
+
+
+def test_unicode_from_models_compiles():
+    blocks = extract_blocks(TEX)
+    weird = ("Trained a U‑Net — 0.747 IoU ≤ 1 × 2 → 3 “quoted” … "
+             "café ‘x’ ₹ 40 000 μs \U0001F680 ​✓ 中")
+    res = compile_pdf(apply_revisions(TEX, blocks, {b.id: weird for b in blocks}))
+    assert res.ok, res.log
