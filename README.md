@@ -91,7 +91,20 @@ LATEX_ENGINE=pdflatex pytest -q                      # engine tests
 ```
 `LLM_MOCK=1` runs everything offline with a fake model.
 
-## Deploy on Render (free)
+## Web app on Vercel
+
+The website lives in `web/` (Vite + React, neo-brutalist design). It calls the Render API.
+
+1. On vercel.com: **Add New → Project**, import **gogul098/jobpilot**.
+2. Set **Root Directory** to `web`. Vercel detects Vite automatically.
+3. Under **Environment Variables**, add `VITE_API_URL` = your Render URL, e.g. `https://jobpilot-xxxx.onrender.com` (no trailing slash).
+4. Deploy. Then copy the Vercel URL (e.g. `https://jobpilot.vercel.app`) into Render → jobpilot → Environment → `CORS_ORIGINS`, and save.
+   Preview deployments named `jobpilot-*.vercel.app` are already allowed by `CORS_ORIGIN_REGEX`.
+5. Open the site, click **Add access key**, and paste `APP_TOKEN` from Render.
+
+Local dev: `cd web && npm install && npm run dev`. `/api` is proxied to `http://localhost:8000`, so no CORS setup is needed.
+
+## Deploy the API on Render (free)
 
 `render.yaml` is a Render Blueprint. It creates:
 - **jobpilot**: one Docker web service that runs the API and the queue worker together (`start.sh`). Render's free plan has no background workers and no shared disk, so both run in one container. The worker restarts by itself if it ever crashes.

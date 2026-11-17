@@ -20,6 +20,7 @@ from arq import create_pool
 from arq.connections import RedisSettings
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
@@ -30,6 +31,16 @@ from .events import count, emit, history
 from .latex.compile import UnsafeLatex, check_safe
 
 app = FastAPI(title="JobPilot")
+
+# The web app is hosted on Vercel, so the browser calls this API cross-origin.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_origin_regex=settings.cors_origin_regex or None,
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Content-Type", "X-App-Token"],
+    max_age=86400,
+)
 MAX_JD = 30_000
 
 

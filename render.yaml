@@ -24,6 +24,8 @@ services:
         value: "2"               # free instance: 512 MB RAM, 0.1 CPU
       - key: APP_TOKEN
         generateValue: true      # copy it from the dashboard and paste into the page
+      - key: CORS_ORIGINS
+        value: https://jobpilot.vercel.app    # change to your Vercel URL (comma-separate several)
       - key: GROQ_API_KEY
         sync: false              # you enter it in the dashboard
       - key: GROQ_MODELS

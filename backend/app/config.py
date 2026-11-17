@@ -13,6 +13,10 @@ class Settings:
     redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     app_token: str = os.getenv("APP_TOKEN", "")          # required header for every API call
     default_user: str = os.getenv("DEFAULT_USER", "me")  # single-user today; real auth later
+    # Browser origins allowed to call the API (the Vercel site). Comma-separated.
+    cors_origins: list[str] = field(default_factory=lambda: _list("CORS_ORIGINS", "http://localhost:5173"))
+    # Also allow this regex, e.g. Vercel preview URLs of this project.
+    cors_origin_regex: str = os.getenv("CORS_ORIGIN_REGEX", r"https://jobpilot[a-z0-9-]*\.vercel\.app")
 
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     # Ordered by preference. Each model has its own rate-limit budget on Groq.
