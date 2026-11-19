@@ -58,6 +58,10 @@ export const api = {
   suggest: (token, id, confirmed) => call(`/api/jobs/${id}/suggest`, json({ confirmed_skills: confirmed }), token),
   apply: (token, id, edits) => call(`/api/jobs/${id}/apply`, json({ edits }), token),
   job: (token, id) => call(`/api/jobs/${id}`, {}, token),
+  similar: (token, id) => call(`/api/jobs/${id}/similar`, { method: "POST" }, token),
+  gmailStatus: (token) => call("/api/gmail/status", {}, token),
+  draftEmail: (token, id, data) => call(`/api/jobs/${id}/email/draft`, json(data), token),
+  sendEmail: (token, id, data) => call(`/api/jobs/${id}/email/send`, json(data), token),
   remove: (token, id) => call(`/api/jobs/${id}`, { method: "DELETE" }, token),
   health: () => fetch(BASE + "/api/health").then((r) => r.ok).catch(() => false),
   fileUrl: (token, id, name) =>

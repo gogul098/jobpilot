@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 
 _SAFE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
-FILES = {"original.tex", "original.pdf", "revised.tex", "revised.pdf", "analysis.json", "result.json"}
+FILES = {"original.tex", "original.pdf", "revised.tex", "revised.pdf", "analysis.json", "result.json", "email.json"}
 ROOT = Path(os.getenv("TMP_DIR") or Path(tempfile.gettempdir()) / "jobpilot")
 TTL = int(os.getenv("JOB_TTL", "3600"))
 

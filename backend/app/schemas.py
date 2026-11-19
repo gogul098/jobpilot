@@ -43,3 +43,9 @@ class RevisionSet(BaseModel):
     revisions: list[Revision]
     missing_skills: list[str] = Field(default_factory=list)   # in JD, absent from resume; never auto-added
     general_advice: list[str] = Field(default_factory=list)
+
+
+class EmailDraft(BaseModel):
+    subject: str
+    body: str
+    projects_used: list[str] = Field(default_factory=list)

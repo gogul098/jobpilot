@@ -7,6 +7,7 @@ apply:   paste accepted text into the LaTeX, compile, re-score.
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Awaitable, Callable
 
 from .ats import score as ats
@@ -15,7 +16,7 @@ from .latex.apply import apply_revisions
 from .latex.compile import compile_pdf
 from .latex.extract import Block, extract_blocks
 from .llm.router import ModelRouter
-from .schemas import JDProfile, RevisionSet
+from .schemas import EmailDraft, JDProfile, RevisionSet
 from . import storage
 
 Progress = Callable[[str, str], Awaitable[None]]
@@ -140,3 +141,80 @@ async def apply(user: str, job_id: str, edits: dict[str, str], progress: Progres
               "applied": sorted(edits)}
     storage.write(user, job_id, "result.json", result)
     return {"stage": "applied", "score_after": after.total}
+
+
+# ---------------- phase 2: application email ----------------
+
+_URL_RE = re.compile(r"https?://[^\s<>()\"']+")
+
+
+def candidate_profile(tex: str, analysis: dict) -> dict:
+    """Name, header links, education line and summary, read from the resume itself."""
+    lines = [l.strip() for l in analysis["pdf_text"].splitlines() if l.strip()]
+    body_start = max(0, tex.find("\\begin{document}"))
+    head_end = tex.find("\\section", body_start)
+    header = tex[body_start:head_end if head_end > 0 else body_start + 2000]
+    links = [u for u in re.findall(r"\\(?:href|url)\{([^}]*)\}", header) if u.startswith("http")]
+    edu = ""
+    for i, l in enumerate(lines):
+        if l.lower() == "education" and i + 1 < len(lines):
+            edu = " ".join(lines[i + 1:i + 3])
+            break
+    summary = next((b["text"] for b in analysis["blocks"] if b["kind"] == "summary"), "")
+    return {"name": lines[0] if lines else "", "links": links, "education": edu[:200], "summary": summary}
+
+
+def resume_projects(analysis: dict) -> list[dict]:
+    projects: dict[str, dict] = {}
+    for b in analysis["blocks"]:
+        if b["kind"] != "bullet" or not b.get("context"):
+            continue
+        name, *stack = b["context"].split(" | ")
+        p = projects.setdefault(name, {"name": name, "stack": ", ".join(stack), "links": b.get("links", []),
+                                       "bullets": []})
+        p["bullets"].append(b["text"])
+    return list(projects.values())
+
+
+def check_email(body: str, subject: str, known_text: str, known_links: set[str]) -> list[str]:
+    """Warnings for anything in the email that isn't backed by the resume."""
+    warnings = []
+    nums = set(re.findall(r"\d+(?:[.,]\d+)?", known_text))
+    text = _URL_RE.sub(" ", subject + "\n" + body)   # digits inside links are checked as links
+    text = re.sub(r"[\w.+-]+@[\w-]+\.[\w.]+", " ", text)
+    for n in re.findall(r"(?<![\w])\d+(?:[.,]\d+)?", text):
+        if n not in nums:
+            warnings.append(f"The number {n} isn't in your resume.")
+    for u in _URL_RE.findall(body):
+        if u.rstrip(".,;") not in known_links:
+            warnings.append(f"The link {u} isn't in your resume.")
+    return sorted(set(warnings))
+
+
+async def draft_email(router: ModelRouter, user: str, job_id: str, recipient: str, recipient_name: str,
+                      tone: str, progress: Progress) -> dict:
+    analysis = storage.read_json(user, job_id, "analysis.json")
+    if not analysis:
+        raise PipelineError("Run the analysis first.")
+    tex = storage.read(user, job_id, "original.tex").decode("utf-8")
+    jd = analysis["jd"]
+    cand = candidate_profile(tex, analysis)
+    projects = resume_projects(analysis)
+
+    await progress("email", "Writing the email for this job")
+    payload = {"job": {k: jd.get(k) for k in ("title", "company", "location", "employment_type",
+                                               "responsibilities", "hard_skills", "keywords")},
+               "candidate": cand, "projects": projects, "tone": tone, "recipient_name": recipient_name}
+    draft, model = await router.complete_json("email_draft", payload, EmailDraft)
+
+    known_text = analysis["pdf_text"] + "\n" + "\n".join(b["text"] for b in analysis["blocks"])
+    known_links = set(cand["links"]) | {u for p in projects for u in p["links"]}
+    has_revised = storage.read(user, job_id, "revised.pdf") is not None
+    email = {"to": recipient or jd.get("apply_email") or "", "subject": draft.subject.strip(),
+             "body": draft.body.strip(), "projects_used": draft.projects_used,
+             "warnings": check_email(draft.body, draft.subject, known_text, known_links),
+             "attachment": "revised.pdf" if has_revised else "original.pdf", "model": model, "sent": []}
+    old = storage.read_json(user, job_id, "email.json") or {}
+    email["sent"] = old.get("sent", [])
+    storage.write(user, job_id, "email.json", email)
+    return {"stage": "email_drafted", "warnings": len(email["warnings"])}

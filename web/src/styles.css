@@ -258,3 +258,49 @@ footer { padding-bottom: 40px; font-size: 14px; color: var(--muted); max-width: 
   .applybar .btn { width: 100%; }
   .topbar .server { display: none; }
 }
+
+/* ---------- phase 2: apply desk ---------- */
+.apply-desk { margin: 8px 0 40px; }
+.apply-desk .grid-2 { margin-bottom: 0; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fields label, .draft label { display: grid; gap: 4px; font-weight: 700; font-size: 15px; }
+.composer input[type=text] { font-weight: 400; }
+.seg { display: inline-flex; margin: 14px 0; border: var(--bw) solid var(--ink); }
+.seg button { font: 700 15px var(--font); padding: 8px 16px; border: 0; background: var(--paper); cursor: pointer; color: var(--ink); }
+.seg button + button { border-left: var(--bw) solid var(--ink); }
+.seg button.on { background: var(--highlight); }
+.composer > .btn { display: flex; }
+.draft { display: grid; gap: 12px; margin-top: 18px; border-top: var(--bw) solid var(--ink); padding-top: 16px; }
+.draft textarea { background: #fffbe0; }
+.warn { margin: 0; padding: 10px 12px 10px 28px; background: #fff1ee; border: 2px solid var(--ink); }
+.attach { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: 15px; }
+.attach span { font-weight: 800; }
+.attach label { display: inline-flex; gap: 6px; font-weight: 500; align-items: center; }
+.btn.send { background: var(--offer); }
+.ok-msg { margin: 0; font-weight: 700; background: var(--offer); border: 2px solid var(--ink); padding: 8px 12px; }
+.fallback .note { margin-top: 8px; }
+.note.top { margin: -6px 0 12px; }
+.similar .row { display: flex; gap: 10px; flex-wrap: wrap; }
+.jobs { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 14px; }
+.job-row { border: var(--bw) solid var(--ink); padding: 12px; background: var(--paper); }
+.job-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.job-top div { display: grid; gap: 2px; min-width: 0; }
+.job-top b { font-size: 18px; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+.job-top small { color: var(--muted); }
+.match { flex: none; font-weight: 800; font-size: 20px; border: var(--bw) solid var(--ink); padding: 2px 8px; font-variation-settings: "wdth" 80; }
+.match.hi { background: var(--offer); } .match.mid { background: var(--highlight); } .match.lo { background: #f1f1f1; }
+.gap { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
+.job-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.tracker { margin: 0 0 48px; }
+.table-wrap { overflow-x: auto; }
+.tracker table { width: 100%; border-collapse: collapse; min-width: 560px; }
+.tracker th, .tracker td { border: 2px solid var(--ink); padding: 8px 10px; text-align: left; font-size: 15px; }
+.tracker th { background: var(--highlight); font-weight: 800; }
+.tracker select { font: 600 15px var(--font); border: 2px solid var(--ink); padding: 4px 6px; background: var(--paper); color: var(--ink); }
+.tracker select.st-applied, .tracker select.st-emailed { background: #dfe7ff; }
+.tracker select.st-interview { background: var(--highlight); }
+.tracker select.st-offer { background: var(--offer); }
+.tracker select.st-rejected { background: #ffd9d1; }
+.tracker .x { font: 800 20px var(--font); border: 2px solid var(--ink); background: var(--paper); width: 32px; height: 32px; cursor: pointer; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (max-width: 520px) { .fields { grid-template-columns: 1fr; } }

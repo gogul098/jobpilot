@@ -135,5 +135,47 @@ Jake's Resume (`\resumeItem`), plain `itemize`/`enumerate` resumes, Awesome-CV (
 - Temp files are already per-user (`$TMP_DIR/<user>/<job>/`).
 - Add per-user rate limits in Redis before opening sign-ups.
 
-## Phase 2 (planned)
-Find similar jobs through job APIs, plus assisted apply: draft an email per company and send it from your Gmail with your resume attached, only after you approve it.
+
+## Phase 2: apply
+
+After an analysis, the **Apply** section has two parts.
+
+**Email the company.**
+- The model writes a 120–200 word email for this job.
+- It features your two most relevant projects with their GitHub links, all taken from your resume's project headings.
+- You edit the text, choose the tailored or the original PDF, and click **Send**. The email goes from your own Gmail with the resume attached.
+- Any number or link that isn't in your resume is flagged before you send.
+- Sending is capped at `EMAIL_DAILY_LIMIT` per day (default 15), so Gmail doesn't flag you as spam.
+- Without a Gmail connection, **Open in Gmail** opens a pre-filled draft, and you attach the PDF yourself.
+
+**Similar jobs.**
+- JobPilot searches the configured job APIs and ranks each result by how much of its skill list your resume shows.
+- Each result links to the job, and to LinkedIn when the posting is there.
+- **Tailor resume for this** loads that job into step 1.
+- **I applied** adds it to **Your applications**, a tracker saved in your browser.
+- JobPilot never logs in to LinkedIn or submits applications: LinkedIn bans accounts that use bots. You click submit.
+
+### Job search setup (optional)
+- **JSearch (recommended):** it aggregates Google for Jobs, which includes LinkedIn, Naukri, Indeed and company sites.
+  1. Subscribe to the free Basic plan of "JSearch" on rapidapi.com.
+  2. Copy your RapidAPI key into `JSEARCH_API_KEY` in Render.
+  - The free tier has a small monthly quota, so searches are cached for 6 hours.
+- **Adzuna:** free and official. Create an app at developer.adzuna.com and set `ADZUNA_APP_ID` and `ADZUNA_APP_KEY`.
+- With neither set, only the **Search on LinkedIn** button works. It opens a LinkedIn search for similar roles posted in the past week.
+
+### Email setup (one time, about 10 minutes)
+JobPilot uses the Gmail API with only the `gmail.send` permission: it can send as you, but it can't read your mail.
+1. Open console.cloud.google.com and create a project, e.g. "JobPilot".
+2. Go to **APIs & Services → Library → Gmail API → Enable**.
+3. Go to **OAuth consent screen**, choose External, fill in the app name and your email. Under **Test users**, add your own Gmail address. Leave it in Testing mode.
+4. Go to **Credentials → Create credentials → OAuth client ID**, application type **Desktop app**. Copy the client ID and secret.
+5. On your computer, from the `backend` folder:
+   ```bash
+   GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... python -m app.gmail_auth
+   ```
+   Sign in, allow access, and the terminal prints a refresh token.
+6. In Render → jobpilot → Environment, set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GMAIL_REFRESH_TOKEN`.
+
+Google expires refresh tokens for apps in Testing mode after 7 days. When sending says the sign-in expired, run step 5 again. Publishing the app removes that limit, but needs Google's verification for public users.
+
+For offline demos: `JOBS_MOCK=1` and `GMAIL_MOCK=1` fake the job search and sending.

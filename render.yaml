@@ -34,6 +34,23 @@ services:
         value: llama-3.3-70b-versatile,openai/gpt-oss-120b,qwen/qwen3-32b,meta-llama/llama-4-scout-17b-16e-instruct,llama-3.1-8b-instant
       - key: GEMINI_API_KEY
         sync: false
+      # ---- phase 2 (all optional) ----
+      - key: JSEARCH_API_KEY       # similar jobs incl. LinkedIn links (RapidAPI)
+        sync: false
+      - key: ADZUNA_APP_ID         # similar jobs (free, developer.adzuna.com)
+        sync: false
+      - key: ADZUNA_APP_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID      # Gmail sending (see README "Email setup")
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: GMAIL_SENDER_NAME
+        value: Gogulakrishnan G
+      - key: EMAIL_DAILY_LIMIT
+        value: "15"
 
   - type: keyvalue
     name: jobpilot-redis

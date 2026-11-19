@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from . import storage
+from . import gmail, jobs_search, storage
 from .config import settings
 from .events import count, emit, history
 from .latex.compile import UnsafeLatex, check_safe
@@ -145,7 +145,8 @@ async def job(job_id: str, user: str = Depends(current_user)):
     state = await app.state.redis.hgetall(f"job:{job_id}")
     return {"state": {k.decode(): v.decode() for k, v in state.items()},
             "analysis": storage.read_json(user, job_id, "analysis.json"),
-            "result": storage.read_json(user, job_id, "result.json")}
+            "result": storage.read_json(user, job_id, "result.json"),
+            "email": storage.read_json(user, job_id, "email.json")}
 
 
 @app.get("/api/jobs/{job_id}/events")
@@ -184,6 +185,101 @@ async def file(job_id: str, name: str, user: str = Depends(current_user)):
     media = "application/pdf" if name.endswith(".pdf") else "application/x-tex"
     return Response(data, media_type=media,
                     headers={"Content-Disposition": f'inline; filename="{name}"'})
+
+
+# ---------------- phase 2: similar jobs ----------------
+
+@app.post("/api/jobs/{job_id}/similar")
+async def similar(job_id: str, user: str = Depends(current_user), _rl: None = Depends(rate_limit)):
+    """Jobs like this one from the configured job APIs, ranked by how well your resume covers them."""
+    _check_job(user, job_id)
+    analysis = storage.read_json(user, job_id, "analysis.json")
+    if not analysis:
+        raise HTTPException(409, "analysis not finished")
+    from .schemas import JDProfile
+    jd = JDProfile(**analysis["jd"])
+    resume = analysis["pdf_text"]
+    key = "jobsearch:" + jobs_search.search_query(jd).lower() + "|" + (jd.location or "").lower()
+    cached = await app.state.redis.get(key)
+    if cached:  # job APIs have small free quotas: reuse a search for 6 hours
+        raw = json.loads(cached)
+        hits = [jobs_search.JobHit(**h) for h in raw["jobs"]]
+        raw["jobs"] = [h.to_dict() for h in jobs_search.rank(hits, jd, resume)]
+        return raw
+    result = await jobs_search.find_similar(jd, resume)
+    if result["jobs"]:
+        await app.state.redis.set(key, json.dumps(result), ex=6 * 3600)
+    return result
+
+
+# ---------------- phase 2: email ----------------
+
+class DraftBody(BaseModel):
+    to: str = ""
+    recipient_name: str = ""
+    tone: str = "warm"
+
+
+class SendBody(BaseModel):
+    to: str
+    subject: str
+    body: str
+    attachment: str = "revised.pdf"   # or original.pdf
+
+
+@app.get("/api/gmail/status")
+async def gmail_status(user: str = Depends(current_user)):
+    return {"connected": gmail.configured(), "address": await gmail.sender_address(),
+            "daily_limit": settings.email_daily_limit}
+
+
+@app.post("/api/jobs/{job_id}/email/draft")
+async def email_draft(job_id: str, body: DraftBody, user: str = Depends(current_user),
+                      _rl: None = Depends(rate_limit)):
+    _check_job(user, job_id)
+    if storage.read(user, job_id, "analysis.json") is None:
+        raise HTTPException(409, "analysis not finished")
+    tone = body.tone if body.tone in ("warm", "formal") else "warm"
+    start = await count(app.state.redis, job_id)
+    await emit(app.state.redis, job_id, "queue", "queued", "Waiting for a worker")
+    await app.state.redis.enqueue_job("draft_email_job", user, job_id, body.to.strip()[:200],
+                                      body.recipient_name.strip()[:80], tone,
+                                      _job_id=f"em-{job_id}-{uuid.uuid4().hex[:6]}")
+    return {"job_id": job_id, "from": start}
+
+
+@app.post("/api/jobs/{job_id}/email/send")
+async def email_send(job_id: str, body: SendBody, user: str = Depends(current_user)):
+    """Send the email exactly as the user approved it, from their Gmail, with the resume attached."""
+    _check_job(user, job_id)
+    if body.attachment not in ("revised.pdf", "original.pdf"):
+        raise HTTPException(400, "bad attachment")
+    pdf = storage.read(user, job_id, body.attachment) or storage.read(user, job_id, "original.pdf")
+    if pdf is None:
+        raise HTTPException(409, "No resume PDF for this job yet. Run the analysis first.")
+    day = time.strftime("%Y%m%d")
+    sent_key = f"emails:{user}:{day}"
+    if int(await app.state.redis.get(sent_key) or 0) >= settings.email_daily_limit:
+        raise HTTPException(429, f"Daily email limit ({settings.email_daily_limit}) reached. "
+                                 "Sending many cold emails in a day gets Gmail accounts flagged.")
+    try:
+        res = await gmail.send(body.to, body.subject, body.body, pdf, _resume_filename(user, job_id))
+    except gmail.GmailError as e:
+        raise HTTPException(400, str(e))
+    await app.state.redis.incr(sent_key)
+    await app.state.redis.expire(sent_key, 2 * 86400)
+    email = storage.read_json(user, job_id, "email.json") or {}
+    email.setdefault("sent", []).append({"to": body.to.strip(), "subject": body.subject.strip(),
+                                         "at": int(time.time()), "id": res.get("id")})
+    storage.write(user, job_id, "email.json", email)
+    return {"sent": True, **res}
+
+
+def _resume_filename(user: str, job_id: str) -> str:
+    analysis = storage.read_json(user, job_id, "analysis.json") or {}
+    name = (analysis.get("pdf_text") or "Resume").strip().splitlines()[0]
+    safe = "".join(c if c.isalnum() else "_" for c in name).strip("_")[:40] or "Resume"
+    return f"{safe}_Resume.pdf"
 
 
 @app.delete("/api/jobs/{job_id}")

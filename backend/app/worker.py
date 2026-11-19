@@ -63,6 +63,11 @@ async def suggest_job(ctx, user: str, job_id: str, confirmed: list):
                                                             _progress(ctx, job_id)))
 
 
+async def draft_email_job(ctx, user: str, job_id: str, to: str, name: str, tone: str):
+    return await _run(ctx, job_id, lambda: pipeline.draft_email(ctx["router"], user, job_id, to, name, tone,
+                                                                _progress(ctx, job_id)))
+
+
 async def sweep_tmp(ctx):
     removed = storage.sweep()
     if removed:
@@ -70,7 +75,7 @@ async def sweep_tmp(ctx):
 
 
 class WorkerSettings:
-    functions = [analyze_job, suggest_job, apply_job]
+    functions = [analyze_job, suggest_job, apply_job, draft_email_job]
     cron_jobs = [cron(sweep_tmp, minute=set(range(0, 60, 5)), run_at_startup=True)]
     on_startup = startup
     on_shutdown = shutdown

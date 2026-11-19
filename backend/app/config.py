@@ -39,6 +39,22 @@ class Settings:
     latex_engine: str = os.getenv("LATEX_ENGINE", "pdflatex")  # pdflatex | tectonic
     compile_timeout: int = int(os.getenv("COMPILE_TIMEOUT", "25"))
 
+    # ---- phase 2: similar jobs ----
+    jsearch_key: str = os.getenv("JSEARCH_API_KEY", "")        # rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch
+    adzuna_id: str = os.getenv("ADZUNA_APP_ID", "")            # developer.adzuna.com
+    adzuna_key: str = os.getenv("ADZUNA_APP_KEY", "")
+    jobs_country: str = os.getenv("JOBS_COUNTRY", "in")
+    jobs_default_location: str = os.getenv("JOBS_DEFAULT_LOCATION", "India")
+    jobs_mock: bool = os.getenv("JOBS_MOCK", "") == "1"
+
+    # ---- phase 2: email via the Gmail API ----
+    google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    gmail_refresh_token: str = os.getenv("GMAIL_REFRESH_TOKEN", "")
+    gmail_sender_name: str = os.getenv("GMAIL_SENDER_NAME", "")
+    email_daily_limit: int = int(os.getenv("EMAIL_DAILY_LIMIT", "15"))   # keeps you out of spam filters
+    gmail_mock: bool = os.getenv("GMAIL_MOCK", "") == "1"
+
     llm_mock: bool = os.getenv("LLM_MOCK", "") == "1"  # offline demo / tests
 
 

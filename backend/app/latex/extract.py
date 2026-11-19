@@ -7,7 +7,7 @@ The LLM only ever sees the plain-text version of a block.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 # Single-argument macros whose argument is a bullet / description line.
 # Covers Jake's Resume, Awesome-CV style and common forks; extend as needed.
@@ -29,6 +29,7 @@ class Block:
     source: str        # raw LaTeX of the content
     text: str          # plain text sent to the LLM
     context: str = ""  # nearest entry heading above it, e.g. "PlanForge | PyTorch, YOLO11, FastAPI"
+    links: list[str] = field(default_factory=list)  # URLs in that heading (GitHub, demo...)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -72,18 +73,19 @@ def match_brace(tex: str, open_idx: int) -> int:
 _HEADING_RE = re.compile(r"\\(resumeProjectHeading|resumeSubheading|resumeSubHeading|resumeSubSubheading|cventry)\s*\{")
 
 
-def _headings(tex: str) -> list[tuple[int, str]]:
-    """(position, plain text of all brace args) for each project/job heading macro."""
+def _headings(tex: str) -> list[tuple[int, str, list[str]]]:
+    """(position, plain text of all brace args, URLs) for each project/job heading macro."""
     out = []
     for m in _HEADING_RE.finditer(tex):
-        j, args = m.end() - 1, []
+        j, args, start = m.end() - 1, [], m.end() - 1
         while j < len(tex) and tex[j] == "{":
             close = match_brace(tex, j)
             args.append(to_plain(tex[j + 1:close]))
             j = close + 1
             while j < len(tex) and tex[j] in " \t\n":
                 j += 1
-        out.append((m.start(), " | ".join(a for a in args if a)))
+        urls = [u for u in re.findall(r"\\(?:href|url)\{([^}]*)\}", tex[start:j]) if u.startswith("http")]
+        out.append((m.start(), " | ".join(a for a in args if a), urls))
     return out
 
 
@@ -219,8 +221,9 @@ def extract_blocks(tex: str) -> list[Block]:
     heads = _headings(clean)
     for n, b in enumerate(blocks, 1):
         b.id = f"b{n:02d}"
-        prior = [(p, t) for p, t in heads if p < b.start and _section_at(sections, p) == b.section]
-        b.context = prior[-1][1] if prior else ""
+        prior = [h for h in heads if h[0] < b.start and _section_at(sections, h[0]) == b.section]
+        if prior:
+            b.context, b.links = prior[-1][1], prior[-1][2]
     return blocks
 
 

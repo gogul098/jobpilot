@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, BUILT_IN_TOKEN, getToken, setToken } from "./api.js";
+import { ApplyDesk, Tracker, useTracker } from "./Apply.jsx";
 
 const STEPS = ["Paste the job", "Get scored", "Pick rewrites", "Download PDF"];
 const COMPONENT_NAMES = {
@@ -25,6 +26,7 @@ export default function App() {
   const [skills, setSkills] = useState([]); // confirmed skills
   const [awake, setAwake] = useState(null);
   const resultRef = useRef(null);
+  const tracker = useTracker();
 
   useEffect(() => { api.health().then(setAwake); }, []);
   useEffect(() => { if (phase === "done") resultRef.current?.scrollIntoView({ behavior: "smooth" }); }, [phase]);
@@ -185,6 +187,14 @@ export default function App() {
             <ScoreCard title="Revised resume" rep={result.score_after} />
           </section>
         )}
+
+        {analysis && jobId && (
+          <ApplyDesk token={token} jobId={jobId} analysis={analysis} tracker={tracker} busy={busy}
+                     hasRevised={phase === "done"}
+                     onTailor={(text) => { setJd(text); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
+        )}
+
+        <Tracker tracker={tracker} />
       </main>
 
       <footer>
