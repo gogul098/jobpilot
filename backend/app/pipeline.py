@@ -50,7 +50,12 @@ async def analyze(router: ModelRouter, user: str, job_id: str, jd_text: str, pro
         raise PipelineError("No bullets or summary found. Supported: \\item, \\resumeItem{...}, \\cvitem{...}.")
 
     await progress("compile", "Compiling your current resume")
-    pdf = await _compile(tex)
+    res = await asyncio.to_thread(compile_pdf, tex)
+    if not res.ok:
+        raise PipelineError("Your .tex file doesn't compile on the server (pdflatex, TeX Live 2024), before any "
+                            "changes were made:\n" + res.log + "\nIt may compile on Overleaf because Overleaf uses "
+                            "a different TeX Live version. Recompile on Overleaf with TeX Live 2024 to see the same error.")
+    pdf = res.pdf
     storage.write(user, job_id, "original.pdf", pdf)
 
     await progress("score", "Scoring your current resume")
@@ -132,13 +137,29 @@ async def apply(user: str, job_id: str, edits: dict[str, str], progress: Progres
     storage.write(user, job_id, "revised.tex", new_tex)
 
     await progress("compile", "Compiling the revised PDF")
-    pdf = await _compile(new_tex)
+    skipped: dict[str, str] = {}
+    res = await asyncio.to_thread(compile_pdf, new_tex)
+    if not res.ok:
+        # The original compiled during analysis, so one or more edits broke it.
+        # Find them one at a time, drop them, and build the PDF from the rest.
+        await progress("compile", "One change broke the LaTeX; finding and skipping it")
+        for bid, text in edits.items():
+            one = await asyncio.to_thread(compile_pdf, apply_revisions(tex, blocks, {bid: text}))
+            if not one.ok:
+                skipped[bid] = one.log.splitlines()[0] if one.log else "compile error"
+        edits = {k: v for k, v in edits.items() if k not in skipped}
+        new_tex = apply_revisions(tex, blocks, edits) if edits else tex
+        res = await asyncio.to_thread(compile_pdf, new_tex)
+        if not res.ok:
+            raise PipelineError("LaTeX did not compile after your changes:\n" + res.log)
+        storage.write(user, job_id, "revised.tex", new_tex)
+    pdf = res.pdf
     storage.write(user, job_id, "revised.pdf", pdf)
 
     await progress("score", "Re-scoring")
     after = ats.score(JDProfile(**analysis["jd"]), pdf, _bullets(blocks, edits))
     result = {"score_before": analysis["score_before"]["total"], "score_after": after.to_dict(),
-              "applied": sorted(edits)}
+              "applied": sorted(edits), "skipped": skipped}
     storage.write(user, job_id, "result.json", result)
     return {"stage": "applied", "score_after": after.total}
 

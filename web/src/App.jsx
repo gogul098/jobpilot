@@ -181,6 +181,11 @@ export default function App() {
                 <a className="btn ghost" href={api.fileUrl(token, jobId, "revised.tex")} download="resume.tex">Download .tex</a>
                 <button className="btn ghost" onClick={finish}>Done, delete my files</button>
               </div>
+              {result.skipped && Object.keys(result.skipped).length > 0 && (
+                <p className="error">
+                  {Object.keys(result.skipped).length} change{Object.keys(result.skipped).length > 1 ? "s" : ""} broke the LaTeX, so {Object.keys(result.skipped).length > 1 ? "they were" : "it was"} left out: {Object.entries(result.skipped).map(([id, why]) => `${(analysis?.suggestions.find((x) => x.id === id)?.context || id).split(" | ")[0]} (${why})`).join("; ")}
+                </p>
+              )}
               <p className="note">Your files are deleted when you press Done, or automatically after an hour.</p>
               <iframe title="Revised resume" src={api.fileUrl(token, jobId, "revised.pdf")} />
             </div>

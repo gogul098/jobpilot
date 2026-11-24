@@ -80,5 +80,20 @@ def compile_pdf(tex: str, timeout: int | None = None) -> CompileResult:
 
 
 def _tail_errors(log: str) -> str:
-    errs = [l for l in log.splitlines() if l.startswith("!") or "error" in l.lower()]
-    return "\n".join(errs[-8:]) or log[-1500:]
+    """The first LaTeX error with the source line it happened on (l.<n> ...), plus a hint."""
+    lines = log.splitlines()
+    out = []
+    for i, l in enumerate(lines):
+        if l.startswith("!"):
+            out.append(l)
+            for nxt in lines[i + 1:i + 12]:
+                if nxt.startswith("l."):
+                    out.append("at line " + nxt[2:].strip())
+                    break
+            if len(out) >= 4:
+                break
+    msg = "\n".join(out) or log[-1500:]
+    if "ttl@" in msg:
+        msg += ("\nHint: this comes from the titlesec package (section headings). Check \\titleformat / "
+                "\\titlerule in your preamble; a \\titlerule* needs [width]{text}.")
+    return msg

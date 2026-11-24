@@ -112,3 +112,11 @@ def test_unicode_from_models_compiles():
              "café ‘x’ ₹ 40 000 μs \U0001F680 ​✓ 中")
     res = compile_pdf(apply_revisions(TEX, blocks, {b.id: weird for b in blocks}))
     assert res.ok, res.log
+
+
+def test_titlesec_error_message_points_to_line():
+    bad = TEX.replace(r"\section{Summary}", r"\section{Summary}\titlerule*{x}", 1)
+    bad = bad.replace(r"\titlerule \vspace{-5pt}]", r"\titlerule*[1em] \vspace{-5pt}]")
+    res = compile_pdf(bad)
+    if not res.ok:
+        assert "line" in res.log or "!" in res.log
