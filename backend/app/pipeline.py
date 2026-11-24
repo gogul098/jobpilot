@@ -51,6 +51,17 @@ async def analyze(router: ModelRouter, user: str, job_id: str, jd_text: str, pro
 
     await progress("compile", "Compiling your current resume")
     res = await asyncio.to_thread(compile_pdf, tex)
+    repairs: list[str] = []
+    if not res.ok:
+        from .latex.repair import candidates
+        for fixed, desc in candidates(tex):
+            r2 = await asyncio.to_thread(compile_pdf, fixed)
+            if r2.ok:
+                await progress("compile", "Fixed a template problem so your resume compiles")
+                tex, res, repairs = fixed, r2, desc
+                storage.write(user, job_id, "original.tex", tex)
+                blocks = extract_blocks(tex)
+                break
     if not res.ok:
         raise PipelineError("Your .tex file doesn't compile on the server (pdflatex, TeX Live 2024), before any "
                             "changes were made:\n" + res.log + "\nIt may compile on Overleaf because Overleaf uses "
@@ -62,7 +73,7 @@ async def analyze(router: ModelRouter, user: str, job_id: str, jd_text: str, pro
     before = ats.score(jd, pdf, _bullets(blocks))
     analysis = {"jd": jd.model_dump(), "blocks": [b.to_dict() for b in blocks],
                 "pdf_text": ats.pdf_facts(pdf)["text"], "score_before": before.to_dict(),
-                "confirmed_skills": [], "models": {"jd": jd_model}}
+                "confirmed_skills": [], "models": {"jd": jd_model}, "repairs": repairs}
     storage.write(user, job_id, "analysis.json", analysis)
     return await _suggest(router, user, job_id, analysis, [], progress)
 

@@ -148,6 +148,9 @@ export default function App() {
 
         {analysis && (
           <>
+            {analysis.repairs?.length > 0 && (
+              <p className="note repair">Your .tex didn't compile as uploaded, so JobPilot fixed it: {analysis.repairs.join(" ")} The download includes the fix.</p>
+            )}
             <section className="grid-2">
               <JobCard jd={analysis.jd} />
               <ScoreCard title="Your resume today" rep={analysis.score_before} />

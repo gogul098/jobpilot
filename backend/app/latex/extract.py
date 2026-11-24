@@ -16,7 +16,8 @@ BULLET_MACROS = ("resumeItem", "resumeItemNoTitle", "cvitem", "item", "bullet")
 # Environments whose \item entries are bullets.
 LIST_ENVS = ("itemize", "enumerate", "cvitems", "highlights")
 
-SUMMARY_SECTIONS = ("summary", "profile", "objective", "about")
+SUMMARY_SECTIONS = ("summary", "profile", "objective", "about", "professional summary", "career summary",
+                    "career objective", "profile summary", "about me", "professional profile")
 
 
 @dataclass

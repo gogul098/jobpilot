@@ -304,3 +304,5 @@ footer { padding-bottom: 40px; font-size: 14px; color: var(--muted); max-width: 
 .tracker .x { font: 800 20px var(--font); border: 2px solid var(--ink); background: var(--paper); width: 32px; height: 32px; cursor: pointer; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (max-width: 520px) { .fields { grid-template-columns: 1fr; } }
+
+.note.repair { background: var(--highlight); border: var(--bw) solid var(--ink); padding: 10px 14px; color: var(--ink); margin: 0 0 24px; font-weight: 600; }

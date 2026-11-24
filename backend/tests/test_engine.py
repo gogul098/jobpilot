@@ -120,3 +120,14 @@ def test_titlesec_error_message_points_to_line():
     res = compile_pdf(bad)
     if not res.ok:
         assert "line" in res.log or "!" in res.log
+
+
+def test_auto_repair_uppercase_titleformat():
+    from app.latex.repair import uppercase_in_titleformat
+    bad = (r"\documentclass{article}\usepackage{titlesec}"
+           r"\titleformat{\section}{\large\bfseries\MakeUppercase}{}{0pt}{}[\titlerule]"
+           "\n\\begin{document}\\section*{Summary}Text.\\end{document}")
+    assert not compile_pdf(bad).ok
+    fixed, _ = uppercase_in_titleformat(bad)
+    assert r"{\large\bfseries}{}{0pt}{\MakeUppercase}[\titlerule]" in fixed
+    assert compile_pdf(fixed).ok
